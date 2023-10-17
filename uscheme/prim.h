@@ -21,3 +21,6 @@ xx("println",    PRINTLN,    unary)
 xx("print",      PRINT,      unary)
 xx("printu",     PRINTU,     unary)
 xx("error",      ERROR,      unary)
+
+//prob two
+xx("list",       LIST1,      someArgs)

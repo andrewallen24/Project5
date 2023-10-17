@@ -121,6 +121,26 @@ Value binary(Exp e, int tag, Valuelist args) {
         assert(0);
     }
 }
+Value list(Valuelist args){
+	if(args == NULL){
+		return mkNil();
+	}
+	else{
+		Value v = nthVL(args,0);
+		return cons(v, list(args->t1));
+	}	
+}
+Value someArgs(Exp e, int tag, Valuelist args){
+	checkargc(e, lengthVL(args), lengthVL(args));
+	switch(tag) {
+		case LIST1:
+			return list(args);
+		default:
+			assert(0);
+	}
+}
+
+
 /* prim.c S314a */
 Value equalatoms(Value v, Value w) {
     if (v.alt != w.alt)

@@ -366,6 +366,11 @@ void printlambda (Printbuf, va_list_box*);
 void process_tests(UnitTestlist tests, Env rho);
 /* function prototypes for \uscheme S313c */
 Value cons(Value v, Value w);
+
+/*prob two*/
+Value list(Valuelist args);
+
+
 Value equalatoms(Value v, Value w);
 /* function prototypes for \uscheme S325c */
 Value parsesx(Par p, Sourceloc source);
