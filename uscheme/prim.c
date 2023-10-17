@@ -127,7 +127,7 @@ Value list(Valuelist args){
 	}
 	else{
 		Value v = nthVL(args,0);
-		return cons(v, list(args->t1));
+		return cons(v, list(args->tl));
 	}	
 }
 Value someArgs(Exp e, int tag, Valuelist args){

@@ -90,6 +90,8 @@ int main(int argc, char *argv[]) {
 ";  definitions of predefined uScheme functions [[and]], [[or]], and [[not]] 96c \n"
           "(define and (b c) (if b  c  b))\n"
           "(define or  (b c) (if b  b  c))\n"
+	  "(define && (b c) (if b  c  b))\n"
+          "(define ||  (b c) (if b  b  c))\n"
           "(define not (b)   (if b #f #t))\n"
           ";  predefined uScheme functions 103a \n"
           "(define atom? (x)\n"

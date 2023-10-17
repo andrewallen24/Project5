@@ -273,10 +273,32 @@ Exp desugarAnd(Explist es)
 	if (NULL == es->tl) return es->hd; 
 	return mkIfx(es->hd, desugarAnd(es->tl), mkLiteral(falsev));
 }
+int nameConflict(Namelist nl, char*buf)
+{
+	for(; nl; nl = nl->tl)
+		if(0 == strcmp(nametostr(nl->hd), buf))
+		{
+			//fprintf(stderr, "Names conflict! %s\n", buf);
+			return 1;
+		}
+	return 0;
+}
 Exp generateFreeVar(Explist es)
 {
-	(void)es;
-	return mkVar(strtoname("freshvar%1"));
+	static int fresh = 1;
+	char buf[32];
+	Namelist frees = NULL;
+	for(; es; es = es->tl)
+	{
+		frees = freevars(es->hd, NULL, frees);
+	}
+	sprintf(buf, "freshvar%%%d", fresh++);
+	while (nameConflict(frees, buf))
+	{
+	sprintf(buf, "freshvar%%%d", fresh++);
+	}
+	Name answer = strtoname(buf);
+	return mkVar(answer);
 }
 
 
