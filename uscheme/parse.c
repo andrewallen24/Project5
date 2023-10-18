@@ -267,6 +267,14 @@ Exp desugarLetStar(Namelist xs, Explist es, Exp body) {
     }
 }
 
+Exp apply(Exp e, Explist es)
+{
+	if (!es) return 0;
+	if(NULL == es->tl) return es->hd;
+	return mkIfx(e ,es->hd, apply(e, es->tl));
+
+}
+
 Exp desugarAnd(Explist es)
 {
 	if (!es) return mkLiteral(truev);

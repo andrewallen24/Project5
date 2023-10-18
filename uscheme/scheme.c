@@ -93,6 +93,9 @@ int main(int argc, char *argv[]) {
 	  "(define && (b c) (if b  c  b))\n"
           "(define ||  (b c) (if b  b  c))\n"
           "(define not (b)   (if b #f #t))\n"
+
+	  "(define apply (b sx1) (b (car sx1) (cadr sx1)))\n" 
+
           ";  predefined uScheme functions 103a \n"
           "(define atom? (x)\n"
           "  (or (symbol? x) (or (number? x) (or (boolean? x) (null? x)))))\n"
