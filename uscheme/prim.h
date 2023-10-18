@@ -24,3 +24,4 @@ xx("error",      ERROR,      unary)
 
 //prob two
 xx("list",       LIST1,      someArgs)
+xx("apply",	alist,	    someArgs)

@@ -1,3 +1,12 @@
+/*  
+ *  ; COSC 3410 - Project 5
+ *  ; Expanding the uscheme interpreter to have the record, apply, and list primitives.
+ *  ; @author Andrew Allen Viviana Garcia Marcin Tutaj
+ *  ; Instructor Professor Brylow
+ *  ; TA-BOT:MAILTO andrew.allen@marquette.edu viviana.garcia@marquette.edu marcin.tutaj@marquette.edu
+*/
+
+
 #include "all.h"
 /* parse.c S322b */
 struct Usage usage_table[] = {
@@ -74,6 +83,7 @@ Exp reduce_to_exp(int code, struct Component *comps) {
   /* add a case for each new syntactic form of Exp */
   case SUGAR(CAND):    return desugarAnd(comps[0].exps);
   case SUGAR(COR):     return desugarOr(comps[0].exps);
+
   }
   assert(0);
 }
@@ -320,4 +330,34 @@ Exp desugarOr(Explist es)
 			mkIfx(v, v, desugarOr(es->tl)));
 }       
 
+Def recordPredicate(Name recname, Namelist fieldnames)
+{
+	Name n = namecat(strtoname("make-"), recname);
+	int len = lengthNL(fieldnames);
+	Exp v = generateFreeVar(NULL);
+	Exp body;  Explist bodylist = NULL;
 
+	//Check for null? at end of list (n+1 cdr)
+	body = nullexp(nthCdr(v, len+1));
+	bodylist = mkEL(body, bodylist);
+
+	//Check for pair? at 1 to nth cdr
+	for (; len >0; len--)
+	{
+		body = pairexp(nthCdr(v, len));
+		bodylist = mkEL(body, bodylist);
+	}
+	//Check lead tag
+	body = mkApply(mkLiteral(mkPrimitive(EQ, binary)),
+			mkEL(carexp(v),
+				mkEL(mkLiteral(mkSym(n)), NULL)));
+	bodylist = mkEL(body, bodylist);
+	
+	//Check initial pair
+	body = pairexp(v);
+	bodylist= mkEL(body, bodylist);
+
+	body = desugarAnd(bodylist);
+	return mkDefine(namecat(recname, strtoname("?")),
+			mkLambda(mkNL(v->var, NULL), body));
+}
