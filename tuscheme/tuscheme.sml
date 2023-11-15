@@ -1644,9 +1644,250 @@ val _ = op eqTypes : tyex list * tyex list -> bool
 (*****************************************************************)
 
 (* type checking for {\tuscheme} ((prototype)) 366 *)
-fun typeof _ = raise LeftAsExercise "typeof"
-fun typdef _ = raise LeftAsExercise "typdef"
+(*fun typeof _ = raise LeftAsExercise "typeof"*)
+(*fun typdef _ = raise LeftAsExercise "typdef"*)
 (* type declarations for consistency checking *)
+
+fun tyexRaise msg = raise TypeError msg
+
+fun typeof (e, gamma, tenv) =
+  case e of
+    LITERAL v => typeofLiteral v
+  | VAR x => typeofVar x gamma
+  | SET (x, e) => typeofSet (x, e, gamma, tenv)
+  | IFX (e1, e2, e3) => typeofIf (e1, e2, e3, gamma, tenv)
+  | WHILEX (e1, e2) => typeofWhile (e1, e2, gamma, tenv)
+  | BEGIN es => typeofBegin (es, gamma, tenv)
+  | APPLY (e, es) => typeofApply (e, es, gamma, tenv)
+  | LETX (flavor, bindings, body) => typeofLetX (flavor, bindings, body, gamma, tenv)
+  | LETRECX (bindings, body) => typeofLetRecX (bindings, body, gamma, tenv)
+  | LAMBDA (lambda_exp) => typeofLambda (lambda_exp, gamma, tenv)
+  | TYLAMBDA (tyvars, e) => typeofTyLambda (tyvars, e, gamma, tenv)
+  | TYAPPLY (e, tys) => typeofTyApply (e, tys, gamma, tenv)
+
+and typeofLiteral v =
+  case v of
+    NUM _ => inttype
+  | BOOLV _ => booltype
+  | SYM _ => symtype
+  | NIL => unittype
+  | PAIR (_, _) => tyexRaise "Unexpected pair in literal"
+  | CLOSURE (_, _) => tyexRaise "Unexpected closure in literal"
+  | PRIMITIVE _ => tyexRaise "Unexpected primitive in literal"
+  | ARRAY _ => tyexRaise "Unexpected array in literal"
+
+and typeofVar x gamma =
+  case lookupEnv (x, gamma) of
+    SOME tau => tau
+  | NONE => tyexRaise ("Unbound variable: " ^ x)
+
+and typeofSet (x, e, gamma, tenv) =
+  let
+    val tau_x = typeofVar x gamma
+    val tau_e = typeof (e, gamma, tenv)
+  in
+    if eqType (tau_x, tau_e) then
+      unittype
+    else
+      tyexRaise ("Mismatched types in set: " ^ x)
+  end
+
+and typdef (d, gamma, functions) =
+  case d of
+    VAL (x, e) => typdefVal (x, e, gamma, functions)
+  | EXP e => typdefExp (e, gamma, functions)
+  | DEFINE (f, {returns, formals, body}) => typdefDefine (f, returns, formals, body, gamma, functions)
+
+and typdefVal (x, e, gamma, functions) =
+  if not (isbound (x, gamma)) then
+    let
+      val tau_e = typeof (e, gamma, functions)
+    in
+      (bind (x, tau_e, gamma), functions, typeString tau_e)
+    end
+  else
+    let
+      val tau_x = find (x, gamma)
+      val tau_e = typeof (e, gamma, functions)
+    in
+      if eqType (tau_x, tau_e) then
+        (gamma, functions, typeString tau_e)
+      else
+        tyexRaise ("Mismatched types in redefinition: " ^ x)
+    end
+
+and typdefExp (e, gamma, functions) =
+  let
+    val tau = typeof (e, gamma, functions)
+  in
+    (gamma, functions, typeString tau)
+  end
+
+and typdefDefine (f, returns, formals, body, gamma, functions) =
+  let
+    val (fnames, ftys) = ListPair.unzip formals
+    val def's_type = FUNTY (ftys, returns)
+    val functions' = bind (f, def's_type, functions)
+    val formals_env = mkEnv (fnames, ftys)
+    val tau = typeof (body, gamma, functions', formals_env)
+  in
+    if eqType (tau, returns) then
+      if not (isbound (f, functions)) then
+        (gamma, functions', funtyString def's_type)
+      else
+        let
+          val env's_type = find (f, functions)
+        in
+          if eqFunty (env's_type, def's_type) then
+            (gamma, functions, funtyString def's_type)
+          else
+            tyexRaise ("Mismatched types in function redefinition: " ^ f)
+        end
+    else
+      tyexRaise ("Mismatched types in function body: " ^ f)
+  end
+
+and typeofIf (e1, e2, e3, gamma, tenv) =
+  let
+    val tau_e1 = typeof (e1, gamma, tenv)
+    val tau_e2 = typeof (e2, gamma, tenv)
+    val tau_e3 = typeof (e3, gamma, tenv)
+  in
+    if eqType (tau_e1, booltype) andalso eqType (tau_e2, tau_e3) then
+      tau_e2
+    else
+      tyexRaise "Mismatched types in if expression"
+  end
+
+and typeofWhile (e1, e2, gamma, tenv) =
+  let
+    val tau_e1 = typeof (e1, gamma, tenv)
+    val tau_e2 = typeof (e2, gamma, tenv)
+  in
+    if eqType (tau_e1, booltype) then
+      unittype
+    else
+      tyexRaise "Mismatched types in while loop"
+  end
+
+and typeofBegin (es, gamma, tenv) =
+  let
+    fun checkTypesSequentially [] acc = acc
+      | checkTypesSequentially (e :: rest) acc =
+          let
+            val tau_e = typeof (e, gamma, tenv)
+          in
+            checkTypesSequentially rest (tau_e :: acc)
+          end
+
+    val reversedExpTypes = checkTypesSequentially (rev es) []
+
+    val resultType =
+      case reversedExpTypes of
+        [] => tyexRaise "Empty BEGIN expression"
+      | lastType :: _ => lastType
+  in
+    resultType
+  end
+
+and typeofApply (e, es, gamma, tenv) =
+  let
+    val tau_e = typeof (e, gamma, tenv)
+    val (argTypes, resultType) =
+      case tau_e of
+        FUNTY (paramTypes, resultType) => (paramTypes, resultType)
+      | _ => tyexRaise "Applying a non-function value"
+
+    val argTypes' = map (fn e => typeof (e, gamma, tenv)) es
+
+    val _ = if eqKinds (argTypes, argTypes') then ()
+            else tyexRaise "Mismatched argument types in function application"
+  in
+    resultType
+  end
+
+and typeofLetX (flavor, bindings, body, gamma, tenv) =
+  let
+    fun checkBindingsSequentially [] gamma' = gamma'
+      | checkBindingsSequentially ((x, e) :: rest) gamma' =
+          let
+            val tau_e = typeof (e, gamma, tenv)
+            val gamma'' = bind (x, tau_e, gamma')
+          in
+            checkBindingsSequentially rest gamma''
+          end
+
+    val extendedGamma = checkBindingsSequentially bindings gamma
+
+    val tau_body = typeof (body, extendedGamma, tenv)
+  in
+    tau_body
+  end
+
+and typeofLetRecX (bindings, body, gamma, tenv) =
+  let
+    fun checkRecBindings [] gamma' = gamma'
+      | checkRecBindings ((x, ty, e) :: rest) gamma' =
+          let
+            val gamma'' = bind (x, ty, gamma')
+          in
+            checkRecBindings rest gamma''
+          end
+
+    val extendedGamma = checkRecBindings bindings gamma
+
+    val tau_body = typeof (body, extendedGamma, tenv)
+  in
+    tau_body
+  end
+
+and typeofLambda ((formals, body), gamma, tenv) =
+  let
+    fun checkFormalsSequentially [] gamma' = gamma'
+      | checkFormalsSequentially ((x, ty) :: rest) gamma' =
+          let
+            val gamma'' = bind (x, ty, gamma')
+          in
+            checkFormalsSequentially rest gamma''
+          end
+
+    val extendedGamma = checkFormalsSequentially formals gamma
+
+    val tau_body = typeof (body, extendedGamma, tenv)
+  in
+    FUNTY (map snd formals, tau_body)
+  end
+
+
+and typeofTyLambda (tyvars, e, gamma, tenv) =
+  let
+    val extendedTenv = mkEnv (tyvars, map (fn a => TYVAR a) tyvars)
+
+    val tau_body = typeof (e, gamma, extendedTenv)
+  in
+    tau_body
+  end
+
+and typeofTyApply (e, tys, gamma, tenv) =
+  let
+    val tau_e = typeof (e, gamma, tenv)
+
+    fun checkTypeArgsSequentially [] = ()
+      | checkTypeArgsSequentially (ty :: rest) =
+          let
+            val _ = typeofTy (ty, gamma, tenv)
+          in
+            checkTypeArgsSequentially rest
+          end
+
+    val _ = checkTypeArgsSequentially tys
+  in
+    CONAPP (tau_e, map (fn ty => typeofTy (ty, gamma, tenv)) tys)
+  end
+
+
+
+
 val _ = op eqKind  : kind      * kind      -> bool
 val _ = op eqKinds : kind list * kind list -> bool
 (* type declarations for consistency checking *)
