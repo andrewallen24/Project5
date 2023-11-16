@@ -1,3 +1,12 @@
+(* 
+* COSC 3410- Project7
+* The purpose of this project seven was to write the type checker for tuscheme. Specifically, we were instructed to implement "typdef", as labeled below around line 1650
+* @authors [Viviana Garcia, Andrew Allen, Marcin Tutaj]
+* Instructor [Dennis Brylow]
+* TA-BOT:MAILTO [viviana.garcia@marquette.edu, andrew.allen@marquette.edu,
+* marcin.tutaj@marquette.edu]
+* *)
+
 (* tuscheme.sml S405a *)
 
 
